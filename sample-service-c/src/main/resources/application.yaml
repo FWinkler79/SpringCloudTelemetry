@@ -27,11 +27,10 @@ management:
 spring:
   application:
     name: ServiceC
-  cloud:
+  sleuth:
     # Tracing configuations:
     # Sampler probability should be between 0.0 and 1.0. 
     # 0.1 is the default, meaning that 10% of requests are 
     # actually traced. The rest is not for performance reasons.
-    sleuth:
-      sampler:
-        probability: 1.0
+    sampler:
+      probability: 1.0
