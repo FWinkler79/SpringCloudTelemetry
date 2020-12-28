@@ -260,6 +260,8 @@ The result will look similar to this:
 
 > ❗Note: We have created a sample dashboard called *Spring Boot* which shows the results of the manual steps described above. You can find it in the *Dashboards* menu entry (on the left) under *Manage*.
 > Simply click it to open the dashboard.
+
+> ❗Note also that there is a Grafana dashboard dedicated for applications that were instrumented with Micrometer. This dashboard can be found [here](https://grafana.com/grafana/dashboards/4701) and out of the box displays all the metrics made available by Micrometer.
 # Spring Boot Configurations
 ## ... for Tracing
 
@@ -582,3 +584,4 @@ Here, we tell `telegraf` to expose a TCP endpoint that accepts `syslog`-formatte
 * [Logback: Mapped Diagnostic Context](http://logback.qos.ch/manual/mdc.html)
 * [Logback: Sifting Appender](http://logback.qos.ch/manual/appenders.html#SiftingAppender)
 * [Logback: Syslog Appender](http://logback.qos.ch/manual/appenders.html#SyslogAppender)
+* [Grafana Dashboard for Applications instrumented with Micrometer](https://grafana.com/grafana/dashboards/4701)
