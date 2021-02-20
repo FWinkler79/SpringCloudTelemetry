@@ -10,14 +10,7 @@ management:
   metrics:
     tags:
       service: ${spring.application.name} # Additional, custom tag to allow filtering by service (instance)
-    export:
-      influx:
-        auto-create-db: true
-        db: spring-boot-metrics
-        uri: http://localhost:8086
-        step: 20s
-        user-name: admin
-        password: admin
+      application: ${spring.application.name} # Additional, custom tag for Grafana dashboard.
   endpoints:
     web:
       exposure:

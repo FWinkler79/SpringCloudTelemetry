@@ -53,9 +53,9 @@ From the project root, execute:
 
 Since this project uses 3 services that communicate with each other, it is best to run each of the commands below from a separate terminal.
 
-1. `mvn -f ./sample-service-a/pom.xml spring-boot:run` 
-2. `mvn -f ./sample-service-b/pom.xml spring-boot:run` 
-3. `mvn -f ./sample-service-c/pom.xml spring-boot:run` 
+1. `mvn -f ./sample-service-a/pom.xml spring-boot:run`
+2. `mvn -f ./sample-service-b/pom.xml spring-boot:run`
+3. `mvn -f ./sample-service-c/pom.xml spring-boot:run`
 
 Once up and running, you can simulate network traffic between the services and see tracing, logs and metrics being emitted.
 # Tracing
@@ -114,8 +114,8 @@ Let's look at our InfluxDB to see, if the metrics and logs arrived:
 ```shell
 # Lists your docker containers. There should be one
 # named something like 'scripts_influxdb_1'. Copy that
-# name. 
-docker container ls 
+# name.
+docker container ls
 
 # Start the 'influx' command inside the InfluxDB
 # container to get access to the command line.
@@ -162,7 +162,7 @@ To use Chronograf, proceed as follows:
 
 1. Open your browser and point it to [http://localhost:8888/](http://localhost:8888/)
 2. A connection to InfluxDB is already configured (see the *Configuration* menu entry on the left).
-3. Click on the *Dashboards* menu entry on the left 
+3. Click on the *Dashboards* menu entry on the left
 4. Click on *Create Dashboard* followed by *Add Data*
 5. In the opening dialog window, in the top left, you can specify a name the chart you are about to create.  
    A chart is simply plot of query that gets periodically issued against InfluxDB with a certain cadence.  
@@ -186,7 +186,7 @@ Now, execute the following on the command line again:
 ./scripts/createPerson.sh
 ```
 
-It will take approx. 20s until you will see the chart displaying a spike! What you see is the number of requests that just came in. 
+It will take approx. 20s until you will see the chart displaying a spike! What you see is the number of requests that just came in.
 
 ![chronograf-dashboard](./.documentation/chronograf-dashboard.png)
 
@@ -287,8 +287,8 @@ Then in your `application.yaml`, you need to configure the tracing sample rate:
 spring:
   cloud:
     # Tracing configuations:
-    # Sampler probability should be between 0.0 and 1.0. 
-    # 0.1 is the default, meaning that 10% of requests are 
+    # Sampler probability should be between 0.0 and 1.0.
+    # 0.1 is the default, meaning that 10% of requests are
     # actually traced. The rest is not, for performance reasons.
     sleuth:
       sampler:
@@ -329,13 +329,13 @@ management:
         user-name: admin
         password: admin
 ```
-This configures the Spring Boot actuator framework to export metrics to InfluxDB (using the Micrometer InfluxDb integration). It instructs Spring Boot to auto-create a database in InfluxDb named `spring-boot-metrics` and the URI where InfluxDB is running. 
+This configures the Spring Boot actuator framework to export metrics to InfluxDB (using the Micrometer InfluxDb integration). It instructs Spring Boot to auto-create a database in InfluxDb named `spring-boot-metrics` and the URI where InfluxDB is running.
 
 The `step` property is used to tell Spring Boot in which interval new metrics information should be uploaded to InfluxDB. Valid values are `5s`, `5m`, `5d` (for seconds, minutes, days).
 
 The `username` and `password` are the credentials used to authenticate to InfluxDB.
 
-Also note the `management.metrics.tags` property map. Here you can define additional tags that will be added to the metrics that are being produced. In our case, we add a `service` tag which holds the name of the service (Spring Boot application name) that created the metrics. That allows us to filter in Chronograf or Grafana by the service instances. 
+Also note the `management.metrics.tags` property map. Here you can define additional tags that will be added to the metrics that are being produced. In our case, we add a `service` tag which holds the name of the service (Spring Boot application name) that created the metrics. That allows us to filter in Chronograf or Grafana by the service instances.
 
 There are many more settings that are noteworthy. For details, please consult the [Actuator Metrics documeentation](https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-features.html#production-ready-metrics)
 
@@ -343,7 +343,7 @@ There are many more settings that are noteworthy. For details, please consult th
 
 To support distributed logging with Spring Boot you don't need any extra libraries. Rather, the idea is as follows:
 
-1. The application writes logs in a specific format to a specific location - this can be a file on the hard disk or a TCP or UDP port. 
+1. The application writes logs in a specific format to a specific location - this can be a file on the hard disk or a TCP or UDP port.
 2. A log aggregator and / or forwarder picks up the logs written by the application and batches them up before sending them to a log sink. Often, these aggregators come with a plugin architecture and allow multiple log inputs (sources) and outputs (sinks), as well as filters that can be applied before logs are fowarded.
 3. A log sink receives the logs and stores them. Examples can be an InfluxDB, an Amazon S3, a Splunk instance or simply another TCP port.
 
@@ -357,7 +357,7 @@ To do so, we add the following `logback.xml` to the `src/main/resources` folder:
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
-    
+
     <appender name="RSYSLOG" class="ch.qos.logback.classic.net.SyslogAppender">
         <syslogHost>127.0.0.1</syslogHost>
         <port>6514</port>
@@ -428,7 +428,7 @@ public class LogEnhancerFilter implements Filter {
     @Override
     public void destroy() {
     }
-    
+
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
     }
@@ -447,7 +447,7 @@ This filter - although primitive in this sample - is called whenever an HTTP req
 As a result, you will see the following information in log output sent to InfluxDB when you send an HTTP request to `service-a`, e.g. by calling `./scripts/createPerson.sh`:
 
 ```
-	2020-12-04 21:53:54	
+	2020-12-04 21:53:54
 INFO org.mongodb.driver.connection Service-B SomeTenantID - Opened connection [connectionId{localValue:2, serverValue:64}] to localhost:27017
 ```
 
@@ -564,6 +564,38 @@ Finally, in the inputs section of `telegraf.conf` you find:
 ```
 
 Here, we tell `telegraf` to expose a TCP endpoint that accepts `syslog`-formatted logs as inputs. `telegraf` will batch up those logs and forward them to InfluxDB. If you change the port here, make sure to also change it in `influx-grafana-docker-compose.yml`.
+
+# Notes (Work in Progress)
+
+1. Add this to `application.yaml`
+   ```yaml
+   management:
+     metrics:
+       tags:
+         application: ${spring.application.name} # Additional, custom tag for Grafana dashboard.
+   ```
+   This is required by the pre-created Grafana Dashboard (`./scripts/grafana/dashboards/jvm-micrometer_rev9.json`) which is available [here](https://grafana.com/grafana /dashboards/4701).
+2. You need to add this to your `pom.xml`...
+   ```xml
+   <dependency>
+     <groupId>io.micrometer</groupId>
+     <artifactId>micrometer-registry-prometheus</artifactId>
+   </dependency>
+   ```
+   ... to enable `actuator/prometheus` endpoint and make sure it is exposed in `application.yaml`:
+   ```yaml
+   management:
+    endpoints:
+      web:
+        exposure:
+          include:
+          - "prometheus"
+   ```
+- Adjust `./scripts/prometheus/prometheus.yml` and add your machine's IP address, so that Prometheus from Docker container can scrape your services' `/actuator/prometheus` endpoints
+
+- Add a new Data Source named `Prometheus` pointing to `http://prometheus:9090`.
+
+- You need to _import_ `./scripts/grafana/dashboards/jvm-micrometer_rev9.json` Grafana Dashboard, using _Dashboards > Manage > Import > Upload JSON_, then select the JSON and as Data Source select `Prometheus`
 
 # References
 
