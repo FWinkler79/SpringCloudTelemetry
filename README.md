@@ -1,5 +1,7 @@
 # Spring Cloud Telemetry
 
+❗ This branch extends the **main** branch with a sample showing the usage of custom spans.
+
 A repository showing Spring Cloud capabilities for Cloud Telemetry.
 
    * [Building the Project](#building-the-project)
@@ -58,6 +60,7 @@ Since this project uses 3 services that communicate with each other, it is best 
 3. `mvn -f ./sample-service-c/pom.xml spring-boot:run` 
 
 Once up and running, you can simulate network traffic between the services and see tracing, logs and metrics being emitted.
+
 # Tracing
 
 With the services and Docker images up and running, let's create some data.
@@ -107,6 +110,7 @@ Several log aggregators exist, such as [rsyslog](https://www.rsyslog.com/) or [f
 Once the log aggregator has sent the logs to the sink (e.g. an InfluxDB), a UI on top of the sink can be used to display them.
 
 This allows for a distributed logging model, where the production of logs, their transmission, their storage and their consumption are cleanly separated and can be achieved with tools that are interchangeable.
+
 # Inspecting Influx DB
 
 Let's look at our InfluxDB to see, if the metrics and logs arrived:
@@ -153,7 +157,9 @@ Have a look at the measurement types! The include JVM statistics (e.g. classes l
 You can add your own measurements, if you like. An example that describes how to do that can be found [here](https://www.mokkapps.de/blog/monitoring-spring-boot-application-with-micrometer-prometheus-and-grafana-using-custom-metrics/) and [here](https://www.baeldung.com/micrometer). More information on Micrometer integration into Spring Boot can be found [here](https://spring.io/blog/2018/03/16/micrometer-spring-boot-2-s-new-application-metrics-collector).
 
 Looking at a database is not fun, so let's look at Chronograf & Grafana instead to plot the timeseries in a human-consumable fashion.
+
 # Using Chronograf & Grafana
+
 ## Chronograf
 
 Chronograf is InfluxDB's admin UI, but it also includes dashboard capabilities. Grafana is an open dashboarding solution which not only works with InfluxDB but many other solutions, too.
@@ -262,7 +268,9 @@ The result will look similar to this:
 > Simply click it to open the dashboard.
 
 > ❗Note also that there is a Grafana dashboard dedicated for applications that were instrumented with Micrometer. This dashboard can be found [here](https://grafana.com/grafana/dashboards/4701) and out of the box displays all the metrics made available by Micrometer.
+
 # Spring Boot Configurations
+
 ## ... for Tracing
 
 For tracing, all you need is the following dependencies in your `pom.xml`:
@@ -295,6 +303,7 @@ spring:
         probability: 0.1 # set this to 1.0 only for testing / debugging!
 ```
 Using the `spring.clound.sleuth` configurations you can also specify the URI for the Zipkin or other tracing backends.
+
 ## ... for Metrics
 
 For metrics, all you need is the following dependencies in your `pom.xml`:
@@ -458,6 +467,7 @@ It is the perfect fit to convey instance and tenant information or other custom 
 
 >❗Note: there is also a [SiftingAppender](http://logback.qos.ch/manual/appenders.html#SiftingAppender) (class `ch.qos.logback.classic.sift.SiftingAppender`) which can be used to write logs to different destinations depending on the MDC data given in the logs. For example, that allows to write logs for specific users, tenants etc. to specific files.
 > Also note, that the SiftingAppender not only supports files as destinations!
+
 # Appendix A: rsyslog & telegraf configurations
 
 The distributed logging setup described above relies on the `rsyslog` and `telegraf` tools.  
@@ -564,6 +574,72 @@ Finally, in the inputs section of `telegraf.conf` you find:
 ```
 
 Here, we tell `telegraf` to expose a TCP endpoint that accepts `syslog`-formatted logs as inputs. `telegraf` will batch up those logs and forward them to InfluxDB. If you change the port here, make sure to also change it in `influx-grafana-docker-compose.yml`.
+
+# Appendix B: Custom Spans for Tracing
+
+Spring Boot adds new spans to a trace with every request you send from one service to another. That's great, because you don't really have to do anything to get an end-to-end trace working out of the box.
+
+There are cases, however, when you will want to add custom spans to a trace, or add additional information (e.g. tags or in-band baggage data) to the spans added by Spring Boot.
+
+You can find addtional classes in `Service A`, `Service B` and `Service C` that show the usage of such custom spans. These additional classes are prefixed with `CustomSpan*`.
+
+In the following we will look at the details.
+
+## Running the Custom Spans Samples
+
+To run the custom spans samples simply proceed as follows:
+
+1. Build and run the components as described in [Running the Project](#running-the-project).
+2. Execute `./scripts/roundtripPerson.sh`.
+3. Open the [Zipkin UI](http://localhost:9411), find the roundtrip requests and drill into one of them.
+
+The script fires a POST request at `Service A` sending a `Person` object in JSON format. `Service A` adds a custom span named `forwarding-person-from-a-to-b`, adds the letter `A` to the lastname of the person and sends it to `Service B`. `Service B` does the equivalent and sends the `Person` to `Service C`. Finally `Service C` will send a request back to `Service A` - where the roundtrip stops.
+
+In the Zipkin UI you should eventually see output like this:
+
+![Zipkin Custom Spans](./.documentation/zipkin-custom-spans.png)
+
+Now let's look at the code and see how this was done.
+
+## Adding Custom Spans
+
+Let's look at `Service A`'s `CustomSpanRestEndpoint` class (you can find the equivalents in the other services as well):
+
+```java
+@RestController
+public class CustomSpanRestEndpoint {
+  
+  private CustomSpanClient customSpanClient;
+  
+  CustomSpanRestEndpoint(CustomSpanClient customSpanClient) {
+    this.customSpanClient = customSpanClient;
+  }
+  
+  @PostMapping("/custom-span")
+  @NewSpan("forwarding-person-from-a-to-b")
+  public Person forward(@RequestBody Person person) {
+    
+    if (person.getLastName().endsWith("C")) {
+      return person;
+    }
+    
+    person.setLastName(person.getLastName() + "-A");
+    return customSpanClient.forward(person);
+  }
+}
+```
+
+Note the annotation of `@NewSpan` on the `forward` method. Here we define the name of the span that will be newly added to the trace. Since `forward` is annotated with `@PostMapping` it actually is exposed as a REST endpoint, and therefore, Spring Boot will add a span automatically when a request is coming in. We add another one, just to show how it is done.
+
+As a termination rule for our roundtrip, we then check if the `Person`'s lastname ends on `C` - which is the case if the request we received was from `Service C`, and if so, we simply return the person and the roundtrip stops.
+
+Otherwise, we simply add an `A` (for `Service A`) to the last name and forward the `Person` on to `Service B`. There, the same happens, and goes on to `Service C`. Finally, the request will come back to the code shown above and the roundtrip will terminate.
+
+As a result to calling `./scripts/roundtripPerson.sh`, you will see output like this:
+
+```
+Alan Turing-ABC
+```
 
 # References
 
