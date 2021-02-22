@@ -302,10 +302,10 @@ For metrics, all you need is the following dependencies in your `pom.xml`:
   <artifactId>micrometer-core</artifactId>
 </dependency>
 
-<!-- The Micrometer integration library for InfluxDB as a backend. -->
+<!-- The Micrometer integration library for Prometheus as a backend. -->
 <dependency>
   <groupId>io.micrometer</groupId>
-  <artifactId>micrometer-registry-influx</artifactId>
+  <artifactId>micrometer-registry-prometheus</artifactId>
 </dependency>
 ```
 
@@ -316,24 +316,19 @@ management:
   metrics:
     tags:
       service: ${spring.application.name}
-    export:
-      influx:
-        auto-create-db: true
-        db: spring-boot-metrics
-        uri: http://localhost:8086
-        step: 20s
-        user-name: admin
-        password: admin
+      application: ${spring.application.name} # Additional, custom tag for Grafana dashboard.
+  endpoints:
+    web:
+      exposure:
+        include:
+        - "*" # Expose all Actuator endpoints. You can change that to just "prometheus" if you want to.
 ```
-This configures the Spring Boot actuator framework to export metrics to InfluxDB (using the Micrometer InfluxDb integration). It instructs Spring Boot to auto-create a database in InfluxDb named `spring-boot-metrics` and the URI where InfluxDB is running.
 
-The `step` property is used to tell Spring Boot in which interval new metrics information should be uploaded to InfluxDB. Valid values are `5s`, `5m`, `5d` (for seconds, minutes, days).
+This configures the Spring Boot actuator framework to export metrics to Prometheus (using the Micrometer Prometheus integration). It exposes an Actuator endpoint for Prometheus (`/actuator/prometheus`) where metrics can be scraped from.
 
-The `username` and `password` are the credentials used to authenticate to InfluxDB.
+Also note the `management.metrics.tags` property map. Here you can define additional tags that will be added to the metrics that are being produced. In our case, we add a `service` tag which holds the name of the service (Spring Boot application name) that created the metrics. That allows us to filter in Chronograf or Grafana by the service instances. Additionally, we added the `application` tag, which is required by the preset Grafana / Prometheus dashboard.
 
-Also note the `management.metrics.tags` property map. Here you can define additional tags that will be added to the metrics that are being produced. In our case, we add a `service` tag which holds the name of the service (Spring Boot application name) that created the metrics. That allows us to filter in Chronograf or Grafana by the service instances.
-
-There are many more settings that are noteworthy. For details, please consult the [Actuator Metrics documeentation](https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-features.html#production-ready-metrics)
+There are many more settings that are noteworthy. For details, please consult the [Actuator Metrics documentation](https://docs.spring.io/spring-boot/docs/current/reference/html/production-ready-features.html#production-ready-metrics)
 
 ## ... for Distributed Logging
 
@@ -627,38 +622,6 @@ As a result to calling `./scripts/roundtripPerson.sh`, you will see output like 
 ```
 Alan Turing-ABC
 ```
-
-# Notes (Work in Progress)
-
-1. Add this to `application.yaml`
-   ```yaml
-   management:
-     metrics:
-       tags:
-         application: ${spring.application.name} # Additional, custom tag for Grafana dashboard.
-   ```
-   This is required by the pre-created Grafana Dashboard (`./scripts/grafana/dashboards/jvm-micrometer_rev9.json`) which is available [here](https://grafana.com/grafana /dashboards/4701).
-2. You need to add this to your `pom.xml`...
-   ```xml
-   <dependency>
-     <groupId>io.micrometer</groupId>
-     <artifactId>micrometer-registry-prometheus</artifactId>
-   </dependency>
-   ```
-   ... to enable `actuator/prometheus` endpoint and make sure it is exposed in `application.yaml`:
-   ```yaml
-   management:
-    endpoints:
-      web:
-        exposure:
-          include:
-          - "prometheus"
-   ```
-- Adjust `./scripts/prometheus/prometheus.yml` and add your machine's IP address, so that Prometheus from Docker container can scrape your services' `/actuator/prometheus` endpoints
-
-- Add a new Data Source named `Prometheus` pointing to `http://prometheus:9090`.
-
-- You need to _import_ `./scripts/grafana/dashboards/jvm-micrometer_rev9.json` Grafana Dashboard, using _Dashboards > Manage > Import > Upload JSON_, then select the JSON and as Data Source select `Prometheus`
 
 # References
 
