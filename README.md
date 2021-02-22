@@ -131,12 +131,23 @@ To have Prometheus collect metrics from your service endpoints, you first need t
 2. Restart the Prometheus server (e.g. using `./scripts/stopPrometheus.sh` followed by `./scripts/startPrometheus.sh`).
 3. Verify that Prometheus service is up and running, by opening the [Prometheus Browser UI](http://prometheus:9090).
 4. Now open [Grafana UI](http://localhost:3000), log in (user: admin, password: admin).
-5. Add a new data source named "Prometheus" pointing to `http://prometheus:9000` (using the name as defined in `./scripts/prometheus-docker-compose.yml`)
+5. The prometheus data source has already been set up for you (see _Settings > Data Sources > Prometheus_).
+6. Also the dashboard has been pre-set up for you. Just find and click on _Dashboards > Manage_ from the menu to the left.
+7. Select the Dashboard named **JVM (Micrometer) Preset**.
+8. At the top right, change _Last 24 hours_ to _Last 5 mintes_, and the refresh cadence of _30s_ to _5s_.
+  
+Now you fire a few requests at your services, like this: 
 
+```shell
+./scripts/createPerson.sh
+./scripts/createPerson.sh
+./scripts/createPerson.sh
+./scripts/createPerson.sh
+```
 
-- Add a new Data Source named `Prometheus` pointing to `http://prometheus:9090`.
+You can then see the spikes appearing in the Grafana dashboard, like this:
 
-- You need to _import_ `./scripts/grafana/dashboards/jvm-micrometer_rev9.json` Grafana Dashboard, using _Dashboards > Manage > Import > Upload JSON_, then select the JSON and as Data Source select `Prometheus`
+![JVM (Micrometer) Dashboard](./.documentation/grafana-prometheus-micrometer.png)
 
 # Distributed Logs
 
