@@ -1,37 +1,43 @@
 # Spring Cloud Telemetry
 
+❗ This branch extends the **custom-spans** branch and switches the InfluxDB ingestion of metrics to a Prometheus-based one. It also uses an off-the-shelf community Grafana dashboard for Spring Boot-based metrics (using micrometer.io) to display the metrics without effort.
+
 A repository showing Spring Cloud capabilities for Cloud Telemetry.
 
-   * [Building the Project](#building-the-project)
-   * [Running the Project](#running-the-project)
-   * [Tracing](#tracing)
-   * [Metrics](#metrics)
-   * [Distributed Logs](#distributed-logs)
-   * [Inspecting Influx DB](#inspecting-influx-db)
-   * [Using Chronograf &amp; Grafana](#using-chronograf--grafana)
-      * [Chronograf](#chronograf)
-      * [Grafana](#grafana)
-   * [Spring Boot Configurations](#spring-boot-configurations)
-      * [... for Tracing](#-for-tracing)
-      * [... for Metrics](#-for-metrics)
-      * [... for Distributed Logging](#-for-distributed-logging)
-      * [Context-Enhanced Log Messages](#context-enhanced-log-messages)
-   * [Appendix A: rsyslog &amp; telegraf configurations](#appendix-a-rsyslog--telegraf-configurations)
-      * [Rsyslog Docker Configurations](#rsyslog-docker-configurations)
-      * [Telegraf Docker Configurations](#telegraf-docker-configurations)
-   * [References](#references)
+  - [Building the Project](#building-the-project)
+  - [Running the Project](#running-the-project)
+  - [Tracing](#tracing)
+  - [Metrics](#metrics)
+  - [Distributed Logs](#distributed-logs)
+  - [Inspecting Influx DB](#inspecting-influx-db)
+  - [Using Chronograf & Grafana](#using-chronograf--grafana)
+    - [Chronograf](#chronograf)
+    - [Grafana](#grafana)
+  - [Spring Boot Configurations](#spring-boot-configurations)
+    - [... for Tracing](#-for-tracing)
+    - [... for Metrics](#-for-metrics)
+    - [... for Distributed Logging](#-for-distributed-logging)
+    - [Context-Enhanced Log Messages](#context-enhanced-log-messages)
+  - [Appendix A: rsyslog & telegraf configurations](#appendix-a-rsyslog--telegraf-configurations)
+    - [Rsyslog Docker Configurations](#rsyslog-docker-configurations)
+    - [Telegraf Docker Configurations](#telegraf-docker-configurations)
+  - [Appendix B: Custom Spans for Tracing](#appendix-b-custom-spans-for-tracing)
+    - [Running the Custom Spans Samples](#running-the-custom-spans-samples)
+    - [Adding Custom Spans](#adding-custom-spans)
+  - [References](#references)
 
 The repository includes:
 
 * Tracing - using [Spring Cloud Sleuth](https://spring.io/projects/spring-cloud-sleuth) and [Zipkin.io](https://zipkin.io/), but other backends (like Jaeger) are possible, too.
-* Metrics - using [Micrometer.io](https://micrometer.io/docs) and [InfluxDB](https://www.influxdata.com/) ass metrics backend.
-* Distributed Logs - using a distributed logs backend.
+* Metrics - using [Micrometer.io](https://micrometer.io/docs) and [Prometheus](https://prometheus.io/) as metrics backend.
+* Distributed Logs - using [InfluxDB](https://www.influxdata.com/) as a distributed logs backend.
 
 The project setup comprises 3 simple Spring Boot services that each expose a MongoDB datastore using Spring Data REST. Thus, they provide a REST API to read and write data from and to MongoDB.
 
 A script is used to send data in JSON format to `service-a`, which persists the data in its own store and then calls `service-b` to replicate the data in its store. `Service-b` then calls `service-c` to do the same.
 
-Thus, a chain of requests is created that demonstrates tracing. Also logs are created and metrics are gathered, which will be stored in an [InfluxDB](https://www.influxdata.com/) and displayed using [Chronograf](https://www.influxdata.com/time-series-platform/chronograf/) and [Grafana](https://grafana.com/).
+Thus, a chain of requests is created that demonstrates tracing. Also logs are created and metrics are gathered. Logs will be pushed and stored in an [InfluxDB](https://www.influxdata.com/) and displayed using [Chronograf](https://www.influxdata.com/time-series-platform/chronograf/) and [Grafana](https://grafana.com/).
+Metrics will be gathered using [micrometer.io](https://micrometer.io/) leveraged by the Spring Boot Actuator framework. They will be exposed as a Prometheus Actuator endpoint and scraped by Prometheus, running as a docker container locally. Grafana will then be used to display a dashboard with the exposed micrometer metrics.
 
 # Building the Project
 
@@ -50,6 +56,7 @@ From the project root, execute:
    Once up and running, InfluxDB is available on [http://localhost:8086](http://localhost:8086) or `http://influxdb:8086` from within the Docker network.  
    Chronograf will be available at [http://localhost:8888](http://localhost:8888).  
    Grafana will be available at [http://localhost:3000](http://localhost:3000).
+4. `./scripts/startPrometheus.sh` - starts Prometheus server that will periodically scrape the endpoints configured in `./scripts/prometheus/prometheus.yml`.
 
 Since this project uses 3 services that communicate with each other, it is best to run each of the commands below from a separate terminal.
 
@@ -58,6 +65,7 @@ Since this project uses 3 services that communicate with each other, it is best 
 3. `mvn -f ./sample-service-c/pom.xml spring-boot:run`
 
 Once up and running, you can simulate network traffic between the services and see tracing, logs and metrics being emitted.
+
 # Tracing
 
 With the services and Docker images up and running, let's create some data.
@@ -92,6 +100,44 @@ With the services and Docker images up and running, let's create more data.
 
 This will generate 12 REST request and 12 `Person` instances being created (never mind that their names are duplicates).
 
+## Inspecting The Prometheus Endpoints
+
+Every service in this sample is configured to expose a special REST endpoint used by Prometheus server to pull metrics from. This endpoint is available under `/actuator/prometheus`. Prometheus server is configured in `./scripts/prometheus/prometheus.yml` to periodically "scrape" these endpoints and harvest any metrics that have accumulated over time.
+
+You can inspect those endpoints simply by pointing your browser at them, e.g. for `Service A` open [http://localhost:8001/actuator/prometheus] and you should see a list of metrics ready to be read by Prometheus server.
+
+### Using Grafana to Display Metrics 
+
+>❗**Note**: In this setup we use a Grafana dashboard created by the community and dedicated for applications that were instrumented with Micrometer. 
+>This dashboard can be found [here](https://grafana.com/grafana/dashboards/4701) and out of the box displays all the metrics made available by Micrometer.
+>It requires Prometheus, which is why we use Prometheus in this example. With a little bit of manual effort, you can also build such a dashboard for InfluxDB and then use only a single backend for both logs and metrics. For the sake of simplicity and showing how little you have to do as a Spring Boot developer if you just combine the right tools and standards, we use Prometheus here.
+
+To have Prometheus collect metrics from your service endpoints, you first need to tell it where those services reside. This happens in file `./scripts/prometheus/prometheus.yml` which is mapped into the docker container where Prometheus is running (see `./scripts/prometheus-docker-compose.yml`).
+
+1. Open the file and make sure to adjust the IP addresses where your services are running to your host machine's IP address:
+  ```yaml
+  global:
+      scrape_interval: 10s # How frequently to scrape targets by default
+    
+  scrape_configs:
+      - job_name: 'spring_micrometer'         # The job name is assigned to scraped metrics by default.
+        metrics_path: '/actuator/prometheus'  # The HTTP resource path on which to fetch metrics from targets.
+        scrape_interval: 5s                   # How frequently to scrape targets from this job.
+        static_configs:                       # A static_config allows specifying a list of targets and a common label set for them
+          - targets: ['192.168.1.159:8001', '192.168.1.159:8002', '192.168.1.159:8003'] # <-- adjust these IP addresses to your local machine's 
+  ```
+
+  >❗Note: This already shows one of the drawbacks of a "pull-model". The services that are being scraped need to be reachable from the Prometheus server. In our case that is easy, since Prometheus is running within a docker container on our host machine and therefore will see all services on the host machine's IP address. In real-life scenarios with firewalls and separated network segments, this can become much more complex and may require changing firewall rules and/or installing and configuring reverse proxies. Generally, a push model as shown with InfluxDB (on branch **main**) might be the better option - depending on the use case, of course.
+2. Restart the Prometheus server (e.g. using `./scripts/stopPrometheus.sh` followed by `./scripts/startPrometheus.sh`).
+3. Verify that Prometheus service is up and running, by opening the [Prometheus Browser UI](http://prometheus:9090).
+4. Now open [Grafana UI](http://localhost:3000), log in (user: admin, password: admin).
+5. Add a new data source named "Prometheus" pointing to `http://prometheus:9000` (using the name as defined in `./scripts/prometheus-docker-compose.yml`)
+
+
+- Add a new Data Source named `Prometheus` pointing to `http://prometheus:9090`.
+
+- You need to _import_ `./scripts/grafana/dashboards/jvm-micrometer_rev9.json` Grafana Dashboard, using _Dashboards > Manage > Import > Upload JSON_, then select the JSON and as Data Source select `Prometheus`
+
 # Distributed Logs
 
 If you have executed the steps described in the sections above, you will also have written logs already.
@@ -107,7 +153,8 @@ Several log aggregators exist, such as [rsyslog](https://www.rsyslog.com/) or [f
 Once the log aggregator has sent the logs to the sink (e.g. an InfluxDB), a UI on top of the sink can be used to display them.
 
 This allows for a distributed logging model, where the production of logs, their transmission, their storage and their consumption are cleanly separated and can be achieved with tools that are interchangeable.
-# Inspecting Influx DB
+
+## Inspecting Influx DB
 
 Let's look at our InfluxDB to see, if the metrics and logs arrived:
 
@@ -134,50 +181,28 @@ name
 db0
 _internal
 telegraf
-spring-boot-metrics
 ```
 
-Note the `spring-boot-metrics` database. That was generated by the Spring Boot services (see [Spring Boot Configurations](#spring-boot-configurations) below).
+Note the `telegraf` database. That was generated by the Telegraf log collector.
 
 Go ahead and type the following:
 
 ```shell
-use spring-boot-metrics
+use telegraf
 show measurements
 ```
 
-As a result you will see a list of measurements sent by the Spring Boot services, each containing time series that can be nicely plotted using Chronograf or Grafana.
+As a result you will see a list of logs produced by the Spring Boot services and sent by Telegraf. 
 
-Have a look at the measurement types! The include JVM statistics (e.g. classes loaded), system statistics (e.g. CPU usage), but also application statistics (e.g. `http_server_requests`)!
+But looking at a database is not fun, so let's look at Chronograf & Grafana instead to plot the timeseries in a human-consumable fashion.
 
-You can add your own measurements, if you like. An example that describes how to do that can be found [here](https://www.mokkapps.de/blog/monitoring-spring-boot-application-with-micrometer-prometheus-and-grafana-using-custom-metrics/) and [here](https://www.baeldung.com/micrometer). More information on Micrometer integration into Spring Boot can be found [here](https://spring.io/blog/2018/03/16/micrometer-spring-boot-2-s-new-application-metrics-collector).
+##  Using Chronograf & Grafana to Display Logs
 
-Looking at a database is not fun, so let's look at Chronograf & Grafana instead to plot the timeseries in a human-consumable fashion.
-# Using Chronograf & Grafana
-## Chronograf
+### Chronograf
 
 Chronograf is InfluxDB's admin UI, but it also includes dashboard capabilities. Grafana is an open dashboarding solution which not only works with InfluxDB but many other solutions, too.
 
-To use Chronograf, proceed as follows:
-
-1. Open your browser and point it to [http://localhost:8888/](http://localhost:8888/)
-2. A connection to InfluxDB is already configured (see the *Configuration* menu entry on the left).
-3. Click on the *Dashboards* menu entry on the left
-4. Click on *Create Dashboard* followed by *Add Data*
-5. In the opening dialog window, in the top left, you can specify a name the chart you are about to create.  
-   A chart is simply plot of query that gets periodically issued against InfluxDB with a certain cadence.  
-   Let's call it *Number of HTTP Requests*
-6. Add the lower half of the window find the *spring-boot-metrics.autogen* database and click on it. You will again see the list of measurements.
-7. Expand the *http_server_requests* measurement and on the right (in the *Fields* column) select the *count* checkbox. This will generate a query statement and execute it immediately.
-8. Save the chart, by clicking the small, green confirmation button on the top right.
-9. Now, find the button near the top right with the *Pause* icon ( `||` ), expand its dropdown and select 10s.
-   This enables the periodic query execution and will lead to the chart updating automatically every 10s.
-
-As a result your query should look like this:
-
-![chronograf-query](./.documentation/chronograf-query.png)
-
-Now, execute the following on the command line again:
+If you have not yet done so, execute the following on the command line:
 
 ```shell
 ./scripts/createPerson.sh
@@ -186,21 +211,14 @@ Now, execute the following on the command line again:
 ./scripts/createPerson.sh
 ```
 
-It will take approx. 20s until you will see the chart displaying a spike! What you see is the number of requests that just came in.
-
-![chronograf-dashboard](./.documentation/chronograf-dashboard.png)
-
-Go ahead, create more charts, plot different metrics and create and save your own dashboards.
-It's all there - made possible for you by Spring Boot.
-
-Finally, to show the distributed logs that were collected from the 3 different services, you can proceed as follows.
+To show the distributed logs that were collected from the 3 different services, you can proceed as follows.
 
 1. In the Chronograf UI find the *Log Viewer* menu entry and click it.
 2. As a result you will see the logs that have been written by the Spring Boot services, collected via the log aggregator and sent to InfluxDB.
 
 ![chronograf-logs](./.documentation/chronograf-logs.png)
 
-## Grafana
+### Grafana
 
 Grafana is an open dashboard solution that not only works with InfluxDB but a variety of other timeseries databases, e.g. Prometheus.
 
@@ -209,60 +227,26 @@ You can access Grafana using your browser. To set up a dashboard proceed as foll
 1. Open your browser and point it to [http://localhost:3000](http://localhost:3000).
 2. When asked to login, use user: `admin`, password: `admin` to log on.
 3. You will be asked to change your password, just skip that step.
-4. A data source pointing to InfluxDB and the `spring-boot-metrics` database is already set up.
-   You can see it in the *Configurations > Data Sources* menu on the left.
+4. A data source named `InfluxDB-Logs` that points towards a different database in InfluxDB where logs are written is already set up. You can see it in the *Configurations > Data Sources* menu on the left.
 5. Create a dashboard from the menu on the left by hitting the `+` entry and selecting *Dashboard*.
 6. Click on *Add new panel*
-7. In the opening dialog window, find the query editor at the lower half of the window. In it click the *select measurement* button and choose *http_server_requests*.
-8. Find the *field(value)* button in the row for the `SELECT` statement, click it and select *count*.
-9. Find the *mean()* button next to it, click it and select *Remove* (we don't want the mean count of requests but the actual count values)
-10. Click on the `+` button where the *mean()* button used to be, and select *Aggregtations > distinct*.
-11. Finally, click the *Apply* button at the top right of the window.
-
-As a result, the query should look like this:
-
-![grafana-query](./.documentation/grafana-query.png)
-
-As a result you will see a dashboard with your plot of requests.
-
-Again, you can generate a few requests like that:
-
-```shell
-./scripts/createPerson.sh
-./scripts/createPerson.sh
-./scripts/createPerson.sh
-./scripts/createPerson.sh
-```
-
-And see how the chart updates.
-
-![grafana-dashboard](./.documentation/grafana-dashboard.png)
-
-Finally logs can also be visualized in Grafana:
-
-1. A data source named `InfluxDB-Logs` that points towards a different database in InfluxDB where logs are written is already set up. You can see it in the *Configurations > Data Sources* menu on the left.
-2. Create a dashboard from the menu on the left by hitting the `+` entry and selecting *Dashboard*.
-3. Click on *Add new panel*
-4. On the right under *Panel* expand the *Visualization* entry.
-5. Select *Logs* from the list of possible visualizations.
-6. In the opening dialog window, find the query editor at the lower half of the window.
-7. Select InfluxDB-Logs from the drop down list.
-8. Click the *select measurement* button and choose *syslog*.
-9. Find the *field(value)* button in the row for the `SELECT` statement, click it and select *message*.
-10. Find the *mean()* button next to it, click it and select *Remove* (we don't want the mean count of requests but the actual count values)
-11. Click on the `+` button where the *mean()* button used to be, and select *Aggregtations > distinct*.
-12. Under `FORMAT AS` select *Logs*
-13. Finally, click the *Apply* button at the top right of the window.
+7. On the right under *Panel* expand the *Visualization* entry.
+8. Select *Logs* from the list of possible visualizations.
+9. In the opening dialog window, find the query editor at the lower half of the window.
+10. Select InfluxDB-Logs from the drop down list.
+11. Click the *select measurement* button and choose *syslog*.
+12. Find the *field(value)* button in the row for the `SELECT` statement, click it and select *message*.
+13. Find the *mean()* button next to it, click it and select *Remove* (we don't want the mean count of requests but the actual count values)
+14. Click on the `+` button where the *mean()* button used to be, and select *Aggregtations > distinct*.
+15. Under `FORMAT AS` select *Logs*
+16. Finally, click the *Apply* button at the top right of the window.
 
 The result will look similar to this:
 
 ![grafana-logs](./.documentation/grafana-logs.png)
 
-> ❗Note: We have created a sample dashboard called *Spring Boot* which shows the results of the manual steps described above. You can find it in the *Dashboards* menu entry (on the left) under *Manage*.
-> Simply click it to open the dashboard.
-
-> ❗Note also that there is a Grafana dashboard dedicated for applications that were instrumented with Micrometer. This dashboard can be found [here](https://grafana.com/grafana/dashboards/4701) and out of the box displays all the metrics made available by Micrometer.
 # Spring Boot Configurations
+
 ## ... for Tracing
 
 For tracing, all you need is the following dependencies in your `pom.xml`:
@@ -295,6 +279,7 @@ spring:
         probability: 0.1 # set this to 1.0 only for testing / debugging!
 ```
 Using the `spring.clound.sleuth` configurations you can also specify the URI for the Zipkin or other tracing backends.
+
 ## ... for Metrics
 
 For metrics, all you need is the following dependencies in your `pom.xml`:
@@ -458,6 +443,7 @@ It is the perfect fit to convey instance and tenant information or other custom 
 
 >❗Note: there is also a [SiftingAppender](http://logback.qos.ch/manual/appenders.html#SiftingAppender) (class `ch.qos.logback.classic.sift.SiftingAppender`) which can be used to write logs to different destinations depending on the MDC data given in the logs. For example, that allows to write logs for specific users, tenants etc. to specific files.
 > Also note, that the SiftingAppender not only supports files as destinations!
+
 # Appendix A: rsyslog & telegraf configurations
 
 The distributed logging setup described above relies on the `rsyslog` and `telegraf` tools.  
@@ -564,6 +550,72 @@ Finally, in the inputs section of `telegraf.conf` you find:
 ```
 
 Here, we tell `telegraf` to expose a TCP endpoint that accepts `syslog`-formatted logs as inputs. `telegraf` will batch up those logs and forward them to InfluxDB. If you change the port here, make sure to also change it in `influx-grafana-docker-compose.yml`.
+
+# Appendix B: Custom Spans for Tracing
+
+Spring Boot adds new spans to a trace with every request you send from one service to another. That's great, because you don't really have to do anything to get an end-to-end trace working out of the box.
+
+There are cases, however, when you will want to add custom spans to a trace, or add additional information (e.g. tags or in-band baggage data) to the spans added by Spring Boot.
+
+You can find addtional classes in `Service A`, `Service B` and `Service C` that show the usage of such custom spans. These additional classes are prefixed with `CustomSpan*`.
+
+In the following we will look at the details.
+
+## Running the Custom Spans Samples
+
+To run the custom spans samples simply proceed as follows:
+
+1. Build and run the components as described in [Running the Project](#running-the-project).
+2. Execute `./scripts/roundtripPerson.sh`.
+3. Open the [Zipkin UI](http://localhost:9411), find the roundtrip requests and drill into one of them.
+
+The script fires a POST request at `Service A` sending a `Person` object in JSON format. `Service A` adds a custom span named `forwarding-person-from-a-to-b`, adds the letter `A` to the lastname of the person and sends it to `Service B`. `Service B` does the equivalent and sends the `Person` to `Service C`. Finally `Service C` will send a request back to `Service A` - where the roundtrip stops.
+
+In the Zipkin UI you should eventually see output like this:
+
+![Zipkin Custom Spans](./.documentation/zipkin-custom-spans.png)
+
+Now let's look at the code and see how this was done.
+
+## Adding Custom Spans
+
+Let's look at `Service A`'s `CustomSpanRestEndpoint` class (you can find the equivalents in the other services as well):
+
+```java
+@RestController
+public class CustomSpanRestEndpoint {
+  
+  private CustomSpanClient customSpanClient;
+  
+  CustomSpanRestEndpoint(CustomSpanClient customSpanClient) {
+    this.customSpanClient = customSpanClient;
+  }
+  
+  @PostMapping("/custom-span")
+  @NewSpan("forwarding-person-from-a-to-b")
+  public Person forward(@RequestBody Person person) {
+    
+    if (person.getLastName().endsWith("C")) {
+      return person;
+    }
+    
+    person.setLastName(person.getLastName() + "-A");
+    return customSpanClient.forward(person);
+  }
+}
+```
+
+Note the annotation of `@NewSpan` on the `forward` method. Here we define the name of the span that will be newly added to the trace. Since `forward` is annotated with `@PostMapping` it actually is exposed as a REST endpoint, and therefore, Spring Boot will add a span automatically when a request is coming in. We add another one, just to show how it is done.
+
+As a termination rule for our roundtrip, we then check if the `Person`'s lastname ends on `C` - which is the case if the request we received was from `Service C`, and if so, we simply return the person and the roundtrip stops.
+
+Otherwise, we simply add an `A` (for `Service A`) to the last name and forward the `Person` on to `Service B`. There, the same happens, and goes on to `Service C`. Finally, the request will come back to the code shown above and the roundtrip will terminate.
+
+As a result to calling `./scripts/roundtripPerson.sh`, you will see output like this:
+
+```
+Alan Turing-ABC
+```
 
 # Notes (Work in Progress)
 
