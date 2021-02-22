@@ -2,6 +2,15 @@
 
 A repository showing Spring Cloud capabilities for Cloud Telemetry.
 
+❗Note: This repository consists of several branches that each show differen aspects of Spring Cloud Telemetry and usually build onto each other.
+
+| Branch Name            | Description                                                                          |
+|------------------------|--------------------------------------------------------------------------------------|
+| **main**               | The branch you are currently on. Find the basics and the foundational project setup. |
+| **custom-spans**       | Extends branch _main_ with samples how to add custom spans and in-band data.         |
+| **prometheus-grafana** | Extends branch _custom-spans_ by switching from InfluxDB (push-model) to Prometheus (pull-model) and using an off-the-shelf Grafana dashboard created for Spring Boot metrics to show the power of Spring Cloud Telemetry. |
+
+
    * [Building the Project](#building-the-project)
    * [Running the Project](#running-the-project)
    * [Tracing](#tracing)
