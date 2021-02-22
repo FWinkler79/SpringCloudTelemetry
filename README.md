@@ -8,11 +8,13 @@ A repository showing Spring Cloud capabilities for Cloud Telemetry.
   - [Running the Project](#running-the-project)
   - [Tracing](#tracing)
   - [Metrics](#metrics)
+    - [Inspecting The Prometheus Endpoints](#inspecting-the-prometheus-endpoints)
+    - [Using Grafana to Display Metrics](#using-grafana-to-display-metrics)
   - [Distributed Logs](#distributed-logs)
-  - [Inspecting Influx DB](#inspecting-influx-db)
-  - [Using Chronograf & Grafana](#using-chronograf--grafana)
-    - [Chronograf](#chronograf)
-    - [Grafana](#grafana)
+    - [Inspecting Influx DB](#inspecting-influx-db)
+    - [Using Chronograf & Grafana to Display Logs](#using-chronograf--grafana-to-display-logs)
+      - [Chronograf](#chronograf)
+      - [Grafana](#grafana)
   - [Spring Boot Configurations](#spring-boot-configurations)
     - [... for Tracing](#-for-tracing)
     - [... for Metrics](#-for-metrics)
@@ -106,7 +108,7 @@ Every service in this sample is configured to expose a special REST endpoint use
 
 You can inspect those endpoints simply by pointing your browser at them, e.g. for `Service A` open [http://localhost:8001/actuator/prometheus] and you should see a list of metrics ready to be read by Prometheus server.
 
-### Using Grafana to Display Metrics 
+## Using Grafana to Display Metrics 
 
 >❗**Note**: In this setup we use a Grafana dashboard created by the community and dedicated for applications that were instrumented with Micrometer. 
 >This dashboard can be found [here](https://grafana.com/grafana/dashboards/4701) and out of the box displays all the metrics made available by Micrometer.
