@@ -33,3 +33,6 @@ spring:
     # actually traced. The rest is not for performance reasons.
     sampler:
       probability: 1.0
+    baggage:
+      remote-fields: my-baggage-key
+      correlation-fields: my-baggage-key

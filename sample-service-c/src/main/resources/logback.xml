@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
 
+    <property name="CONSOLE_LOG_PATTERN" value="${CONSOLE_LOG_PATTERN:-%X{my-baggage-key} %clr(%d{${LOG_DATEFORMAT_PATTERN:-yyyy-MM-dd HH:mm:ss.SSS}}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr(${PID:- }){magenta} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}}"/>
+    
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <include resource="org/springframework/boot/logging/logback/console-appender.xml" />
 
@@ -13,7 +15,7 @@
         <syslogHost>127.0.0.1</syslogHost>
         <port>6514</port>
         <facility>LOCAL0</facility> <!-- See: https://en.wikipedia.org/wiki/Syslog#Facility -->
-        <suffixPattern>%thread: %-5level %logger{36} %X{service} %X{tenant} - %msg%n</suffixPattern>
+        <suffixPattern>%thread: %-5level %logger{36} %X{service} %X{tenant} %X{my-baggage-key} - %msg%n</suffixPattern>
     </appender>
 
     <root level="INFO">
